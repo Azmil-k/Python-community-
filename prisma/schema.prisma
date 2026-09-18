@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+  datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String?
+  role      String   @default("STUDENT") // STUDENT, MENTOR, ADMIN
+  streak    Int      @default(0)
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  
+  // Relations
+  podId     String?
+  pod       Pod?     @relation(fields: [podId], references: [id], onDelete: SetNull)
+  
+  // For mentors: the pods they manage
+  managedPods Pod[]   @relation("MentorPod")
+
+  submissions Submission[]
+  extraTaskSubmissions ExtraTaskSubmission[]
+  badges      Badge[]
+}
+
+model Pod {
+  id        String   @id @default(uuid())
+  name      String
+  
+  mentorId  String?
+  mentor    User?    @relation("MentorPod", fields: [mentorId], references: [id], onDelete: SetNull)
+  
+  students  User[]
+  assignedExtraTasks AssignedExtraTask[]
+}
+
+model Week {
+  id           String   @id @default(uuid())
+  weekNumber   Int      @unique
+  targetModule String
+  taskBrief    String
+  deadline     DateTime
+  isActive     Boolean  @default(false)
+
+  submissions  Submission[]
+  extraTasks   ExtraTask[]
+}
+
+model Submission {
+  id             String   @id @default(uuid())
+  studentId      String
+  weekId         String
+  screenshotUrl  String
+  taskLinkOrCode String
+  submittedAt    DateTime @default(now())
+  status         String   @default("PENDING") // PENDING, COMPLETED, INCOMPLETE
+  mentorComment  String?
+
+  student        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  week           Week     @relation(fields: [weekId], references: [id], onDelete: Restrict)
+}
+
+model Badge {
+  id          String   @id @default(uuid())
+  studentId   String
+  name        String
+  dateAwarded DateTime @default(now())
+
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, name])
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  text      String
+  createdAt DateTime @default(now())
+}
+
+model ExtraTask {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  weekId      String
+  
+  week        Week     @relation(fields: [weekId], references: [id], onDelete: Restrict)
+  assignments AssignedExtraTask[]
+  submissions ExtraTaskSubmission[]
+}
+
+model AssignedExtraTask {
+  id          String   @id @default(uuid())
+  podId       String
+  extraTaskId String
+
+  pod         Pod      @relation(fields: [podId], references: [id], onDelete: Cascade)
+  extraTask   ExtraTask @relation(fields: [extraTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([podId, extraTaskId])
+}
+
+model ExtraTaskSubmission {
+  id             String   @id @default(uuid())
+  studentId      String
+  extraTaskId    String
+  answerText     String
+  screenshotUrl  String?
+  submittedAt    DateTime @default(now())
+  status         String   @default("PENDING") // PENDING, COMPLETED, INCOMPLETE
+  mentorComment  String?
+
+  student        User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  extraTask      ExtraTask @relation(fields: [extraTaskId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, extraTaskId])
+}

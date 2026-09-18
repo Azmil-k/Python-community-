@@ -1,0 +1,2 @@
+# Exclude sensitive scripts output from project zips, exports, and indexing
+scripts/output/
